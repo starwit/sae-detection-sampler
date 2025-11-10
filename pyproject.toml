@@ -9,14 +9,14 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pydantic = "^2.11.7"
+pydantic = "^2.12.4"
 visionapi = { git = "https://github.com/starwit/vision-api.git", subdirectory = "python/visionapi", tag = "3.4.0" }
 visionlib = { git = "https://github.com/starwit/vision-lib.git", subdirectory = "python", tag = "0.13.1" }
-pydantic-settings = "2.10.1"
-prometheus-client = "0.22.1"
+pydantic-settings = "2.11.0"
+prometheus-client = "0.23.1"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "8.4.2"
+pytest = "9.0.0"
 
 [build-system]
 requires = ["poetry-core"]
