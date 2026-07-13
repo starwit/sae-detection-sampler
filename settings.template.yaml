@@ -11,3 +11,4 @@ min_width: 0.001 # minimum bounding box width below which a message is sent
 min_height: 0.001 # minimum bounding boxheight below which a message is sent
 max_detections: 20 # maximum number of detections in a message above which a message is sent
 time_past: 1d # e.g. 1d, 5h, 10m, 30s time interval after which a message is sent even if no other criteria are met
+cooldown_seconds: 5 # minimum seconds between mined images

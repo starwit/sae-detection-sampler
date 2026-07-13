@@ -24,6 +24,7 @@ class DetectionSelector:
     def __init__(self, config: DetectionSelectorConfig) -> None:
         self.config = config
         self.timedelta_timestamp = self._timedelta(config.time_past)
+        self.last_selected_timestamp_ms = None
         logger.setLevel(self.config.log_level.value)
 
     def __call__(self, input_proto) -> Any:
@@ -71,10 +72,18 @@ class DetectionSelector:
                 send_msg = True
             if self._is_time_past():
                 send_msg = True
-        if send_msg:
-            return sae_msg
-        else:
+        if not send_msg:
             return None
+
+        timestamp_ms = sae_msg.frame.timestamp_utc_ms
+        # Suppressed frames do not restart the cooldown; measure from the last forwarded candidate.
+        if (self.config.cooldown_seconds > 0
+                and self.last_selected_timestamp_ms is not None
+                and timestamp_ms - self.last_selected_timestamp_ms < self.config.cooldown_seconds * 1000):
+            return None
+
+        self.last_selected_timestamp_ms = timestamp_ms
+        return sae_msg
 
     def _is_time_past(self) -> bool:
         if self.timedelta_timestamp is not None:
