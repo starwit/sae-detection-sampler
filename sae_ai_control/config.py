@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Annotated
@@ -23,8 +25,7 @@ class DetectionSelectorConfig(BaseSettings):
     min_height: float = 0.1
     max_detections: int = 20
     time_past: str = "1d"
-    # Disabled unless configured in settings.yaml or through the environment.
-    cooldown_seconds: int = 0
+    cooldown_seconds: Annotated[Optional[int], Field(ge=0)] = None
     
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings):

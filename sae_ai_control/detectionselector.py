@@ -77,7 +77,7 @@ class DetectionSelector:
 
         timestamp_ms = sae_msg.frame.timestamp_utc_ms
         # Suppressed frames do not restart the cooldown; measure from the last forwarded candidate.
-        if (self.config.cooldown_seconds > 0
+        if (self.config.cooldown_seconds is not None
                 and self.last_selected_timestamp_ms is not None
                 and timestamp_ms - self.last_selected_timestamp_ms < self.config.cooldown_seconds * 1000):
             return None
