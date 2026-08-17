@@ -4,24 +4,24 @@ set -e
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
 
     # Stop the service
-    systemctl stop sae-ai-control.service
+    systemctl stop sae-detection-sampler.service
 
     # Disable the service
-    systemctl disable sae-ai-control.service
+    systemctl disable sae-detection-sampler.service
 
     # Remove the service file
-    rm -f /etc/systemd/system/sae-ai-control.service
+    rm -f /etc/systemd/system/sae-detection-sampler.service
 
     systemctl daemon-reload
 
     # Remove the wrapper script
-    rm -f /usr/local/bin/sae-ai-control
+    rm -f /usr/local/bin/sae-detection-sampler
     
     # Remove application directory
-    rm -rf /opt/starwit/sae-ai-control
+    rm -rf /opt/starwit/sae-detection-sampler
 
     # Remove config files directory
-    rm -rf /etc/starwit/sae-ai-control
+    rm -rf /etc/starwit/sae-detection-sampler
 fi
 
 #DEBHELPER#

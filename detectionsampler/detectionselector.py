@@ -18,8 +18,6 @@ PROTO_DESERIALIZATION_DURATION = Summary('detection_selector_proto_deserializati
 
 
 class DetectionSelector:
-    timedelta_timestamp = datetime.now()
-    last_send_time = datetime.now()
 
     def __init__(self, config: DetectionSelectorConfig) -> None:
         self.config = config
@@ -34,8 +32,6 @@ class DetectionSelector:
     def get(self, input_proto):
         sae_msg = self._unpack_proto(input_proto)
 
-        # Your implementation goes (mostly) here
-        logger.debug('Received SAE message from pipeline')
         sae_msg = self._filter_message(sae_msg)
         if sae_msg is None:
             return None
@@ -54,8 +50,8 @@ class DetectionSelector:
         return sae_msg.SerializeToString()
     
     def _filter_message(self, sae_msg: SaeMessage):
-        send_msg: bool = False
-        if (sae_msg.detections is not None and len(sae_msg.detections) > 0):
+        send_msg = False
+        if sae_msg.detections is not None and len(sae_msg.detections) > 0:
             for detection in sae_msg.detections:
                 if detection.confidence < self.config.min_confidence:
                     send_msg = True
@@ -68,9 +64,9 @@ class DetectionSelector:
                 if height < self.config.min_height:
                     send_msg = True
                     break
-            if (sae_msg.detections is not None and len(sae_msg.detections) > self.config.max_detections):
+            if sae_msg.detections is not None and len(sae_msg.detections) > self.config.max_detections:
                 send_msg = True
-            if self._is_time_past():
+            if self._has_time_passed():
                 send_msg = True
         if not send_msg:
             return None
@@ -109,4 +105,4 @@ class DetectionSelector:
             return timedelta(minutes=value)
         # Add more cases as needed (e.g., 'h' for hours, 'm' for minutes)
         else:
-            raise ValueError("Unsupported period format")
+            return False

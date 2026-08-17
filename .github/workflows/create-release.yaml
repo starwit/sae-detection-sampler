@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 env:
-  IMAGE_NAME: sae-ai-control
+  IMAGE_NAME: sae-detection-sampler
   DOCKERHUB_USERNAME: starwit
   DOCKERHUB_ORG: starwitorg 
 

@@ -1,7 +1,7 @@
-settings.yaml /etc/starwit/sae-ai-control
-main.py /opt/starwit/sae-ai-control
+settings.yaml /etc/starwit/sae-detection-sampler
+main.py /opt/starwit/sae-detection-sampler
 
-requirements.txt /opt/starwit/sae-ai-control
+requirements.txt /opt/starwit/sae-detection-sampler
 
-sae_ai_control /opt/starwit/sae-ai-control
-debian/sae-ai-control.service /usr/lib/systemd/system/
+detectionsampler /opt/starwit/sae-detection-sampler
+debian/sae-detection-sampler.service /usr/lib/systemd/system/

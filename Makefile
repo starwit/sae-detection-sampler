@@ -1,6 +1,6 @@
 .PHONY: install build-deb clean
 
-export PACKAGE_NAME=sae-ai-control
+export PACKAGE_NAME=sae-detection-sampler
 
 install:
 	poetry install

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from sae_ai_control.detectionselector import DetectionSelector, DetectionSelectorConfig
+from detectionsampler.detectionselector import DetectionSelector, DetectionSelectorConfig
 
 class DummyDetection:
     def __init__(self, confidence, min_x, max_x, min_y, max_y):
@@ -19,7 +19,7 @@ def config():
     cfg.min_width = 10
     cfg.min_height = 10
     cfg.max_detections = 4
-    cfg.time_past = "1d"
+    cfg.max_interval_s = 86400
     return cfg
 
 
@@ -27,7 +27,7 @@ def config():
 def selector(config):
     sel = DetectionSelector(config)
     # Patch _is_time_past to control its output
-    sel._is_time_past = MagicMock(return_value=False)
+    sel._has_time_passed = MagicMock(return_value=False)
     return sel
 
 def make_msg(detections, timestamp=1_000):
