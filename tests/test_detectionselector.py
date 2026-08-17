@@ -14,19 +14,22 @@ class DummyDetection:
 
 @pytest.fixture
 def config():
-    cfg = DetectionSelectorConfig()
-    cfg.min_confidence = 0.5
-    cfg.min_width = 10
-    cfg.min_height = 10
-    cfg.max_detections = 4
-    cfg.max_interval_s = 86400
-    return cfg
+    # Pass every value explicitly so settings.yaml / env vars cannot leak into the tests
+    return DetectionSelectorConfig(
+        log_level='WARNING',
+        min_confidence=0.5,
+        min_width=10,
+        min_height=10,
+        max_detections=4,
+        time_past='1d',
+        cooldown_seconds=None,
+    )
 
 
 @pytest.fixture
 def selector(config):
     sel = DetectionSelector(config)
-    # Patch _is_time_past to control its output
+    # Patch _has_time_passed to control its output
     sel._has_time_passed = MagicMock(return_value=False)
     return sel
 
@@ -94,7 +97,7 @@ def test_filter_message_all_ok(selector):
 def test_filter_message_applies_cooldown(config):
     config.cooldown_seconds = 10
     selector = DetectionSelector(config)
-    selector._is_time_past = MagicMock(return_value=False)
+    selector._has_time_passed = MagicMock(return_value=False)
     detection = DummyDetection(confidence=0.4, min_x=0, max_x=20, min_y=0, max_y=20)
 
     first = make_msg([detection], timestamp=1_000)
