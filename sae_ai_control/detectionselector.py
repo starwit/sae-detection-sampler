@@ -36,11 +36,11 @@ class DetectionSelector:
 
         # Your implementation goes (mostly) here
         logger.debug('Received SAE message from pipeline')
-        sae_msg = self._filter_message(sae_msg)
+        sae_msg, reason = self._filter_message(sae_msg)
         if sae_msg is None:
-            return None
+            return None, None
         else:
-            return self._pack_proto(sae_msg)
+            return self._pack_proto(sae_msg), reason
         
     @PROTO_DESERIALIZATION_DURATION.time()
     def _unpack_proto(self, sae_message_bytes):
@@ -54,36 +54,34 @@ class DetectionSelector:
         return sae_msg.SerializeToString()
     
     def _filter_message(self, sae_msg: SaeMessage):
-        send_msg: bool = False
-        if (sae_msg.detections is not None and len(sae_msg.detections) > 0):
-            for detection in sae_msg.detections:
-                if detection.confidence < self.config.min_confidence:
-                    send_msg = True
-                    break
-                width = detection.bounding_box.max_x - detection.bounding_box.min_x
-                height = detection.bounding_box.max_y - detection.bounding_box.min_y
-                if width < self.config.min_width:
-                    send_msg = True
-                    break
-                if height < self.config.min_height:
-                    send_msg = True
-                    break
-            if (sae_msg.detections is not None and len(sae_msg.detections) > self.config.max_detections):
-                send_msg = True
-            if self._is_time_past():
-                send_msg = True
-        if not send_msg:
-            return None
+        if sae_msg.detections is None or len(sae_msg.detections) == 0:
+            return None, None
+
+        reason = None
+        for detection in sae_msg.detections:
+            if detection.confidence < self.config.min_confidence:
+                reason = "low_confidence"
+                break
+            width = detection.bounding_box.max_x - detection.bounding_box.min_x
+            height = detection.bounding_box.max_y - detection.bounding_box.min_y
+            if width < self.config.min_width or height < self.config.min_height:
+                reason = "small_object"
+                break
+        if reason is None and len(sae_msg.detections) > self.config.max_detections:
+            reason = "many_objects"
+        time_past = self._is_time_past()
+        if reason is None and not time_past:
+            return None, None
 
         timestamp_ms = sae_msg.frame.timestamp_utc_ms
         # Suppressed frames do not restart the cooldown; measure from the last forwarded candidate.
         if (self.config.cooldown_seconds is not None
                 and self.last_selected_timestamp_ms is not None
                 and timestamp_ms - self.last_selected_timestamp_ms < self.config.cooldown_seconds * 1000):
-            return None
+            return None, None
 
         self.last_selected_timestamp_ms = timestamp_ms
-        return sae_msg
+        return sae_msg, reason
 
     def _is_time_past(self) -> bool:
         if self.timedelta_timestamp is not None:

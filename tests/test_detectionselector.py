@@ -40,56 +40,59 @@ def test_filter_message_confidence_below_min(selector):
     detection = DummyDetection(confidence=0.4, min_x=0, max_x=20, min_y=0, max_y=20)
     msg = make_msg([detection])
     result = selector._filter_message(msg)
-    assert result == msg
+    assert result == (msg, "low_confidence")
     
     detection = DummyDetection(confidence=0.6, min_x=0, max_x=20, min_y=0, max_y=20)
     msg = make_msg([detection])
     result = selector._filter_message(msg)
-    assert result is None
+    assert result == (None, None)
 
 def test_filter_message_width_below_min(selector):
     detection = DummyDetection(confidence=0.6, min_x=0, max_x=9, min_y=0, max_y=20)
     msg = make_msg([detection])
     result = selector._filter_message(msg)
-    assert result == msg
+    assert result == (msg, "small_object")
     
     detection = DummyDetection(confidence=0.6, min_x=0, max_x=10, min_y=0, max_y=20)
     msg = make_msg([detection])
     result = selector._filter_message(msg)
-    assert result is None
+    assert result == (None, None)
 
 def test_filter_message_height_below_min(selector):
     detection = DummyDetection(confidence=0.6, min_x=0, max_x=20, min_y=0, max_y=9)
     msg = make_msg([detection])
     result = selector._filter_message(msg)
-    assert result == msg 
+    assert result == (msg, "small_object")
         
     detection = DummyDetection(confidence=0.6, min_x=0, max_x=20, min_y=0, max_y=10)
     msg = make_msg([detection])
     result = selector._filter_message(msg)
-    assert result is None
+    assert result == (None, None)
 
 
 def test_filter_message_too_many_detections(selector):
     detections = [DummyDetection(0.6, 0, 20, 0, 20) for _ in range(5)]
     msg = make_msg(detections)
     result = selector._filter_message(msg)
-    assert result == msg
+    assert result == (msg, "many_objects")
     detections = [DummyDetection(0.6, 0, 20, 0, 20) for _ in range(4)]
     msg = make_msg(detections)
     result = selector._filter_message(msg)
-    assert result is None
+    assert result == (None, None)
     
 def test_filter_message_none_triggers(selector):
     msg = make_msg([])
     result = selector._filter_message(msg)
-    assert result is None
+    assert result == (None, None)
 
 def test_filter_message_all_ok(selector):
     detection = DummyDetection(confidence=0.6, min_x=0, max_x=20, min_y=0, max_y=20)
     msg = make_msg([detection])
     result = selector._filter_message(msg)
-    assert result is None
+    assert result == (None, None)
+
+    selector._is_time_past.return_value = True
+    assert selector._filter_message(msg) == (msg, None)
 
 def test_filter_message_applies_cooldown(config):
     config.cooldown_seconds = 10
@@ -101,7 +104,7 @@ def test_filter_message_applies_cooldown(config):
     during_cooldown = make_msg([detection], timestamp=10_999)
     after_cooldown = make_msg([detection], timestamp=11_000)
 
-    assert selector._filter_message(first) == first
-    assert selector._filter_message(during_cooldown) is None
+    assert selector._filter_message(first) == (first, "low_confidence")
+    assert selector._filter_message(during_cooldown) == (None, None)
     # The rejected frame did not restart the cooldown, so the boundary passes.
-    assert selector._filter_message(after_cooldown) == after_cooldown
+    assert selector._filter_message(after_cooldown) == (after_cooldown, "low_confidence")

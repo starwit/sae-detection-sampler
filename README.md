@@ -24,6 +24,10 @@ This template employs pydantic-settings for configuration handling. On startup, 
 
 The `settings.template.yaml` should always reflect a correct and fully fledged settings structure to use as a starting point for users. 
 
+## Output streams
+
+Selected messages are published to the configured stream ID with a `_low_confidence`, `_small_object`, or `_many_objects` suffix identifying the matching heuristic. Periodic selections keep the base stream ID.
+
 ## Github Workflows and Versioning
 
 The following Github Actions are available:
