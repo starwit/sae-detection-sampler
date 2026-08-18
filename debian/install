@@ -1,7 +1,0 @@
-settings.yaml /etc/starwit/sae-ai-control
-main.py /opt/starwit/sae-ai-control
-
-requirements.txt /opt/starwit/sae-ai-control
-
-sae_ai_control /opt/starwit/sae-ai-control
-debian/sae-ai-control.service /usr/lib/systemd/system/

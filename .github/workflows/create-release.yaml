@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 env:
-  IMAGE_NAME: sae-ai-control
+  IMAGE_NAME: sae-detection-sampler
   DOCKERHUB_USERNAME: starwit
   DOCKERHUB_ORG: starwitorg 
 
@@ -25,12 +25,9 @@ jobs:
     name: create new release
     runs-on: [self-hosted, linux, X64]
     container:
-      image: starwitorg/debian-packaging:0.0.3
+      image: starwitorg/base-python-image:3.13.1-py3.13-ptr2.1.5
       volumes:
         - /home/githubrunner/.cache/pypoetry:/root/.cache/pypoetry
-      env:
-        PASSPHRASE: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD_FLAT }}
-        GPG_KEY: ${{ secrets.OSSRH_GPG_SECRET_KEY_B64 }}
 
     steps:
       #----------------------------------------------
@@ -64,16 +61,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: build apt package
-        run: |
-            echo "Build APT package"
-            bash -c "poetry self add poetry-plugin-export; make build-deb"
-            echo "Finish building APT package"
-
       - name: Create github release
-        run: | 
-          APP_VERSION=$(cat pyproject.toml | grep "version" | head -1 | cut -d'=' -f2 | xargs echo -n) 
-          gh release create $APP_VERSION -F README.md --title "${APP_VERSION}" --target $(git branch --show-current) ./target/*deb ./target/*.dsc
+        run: |
+          APP_VERSION=$(cat pyproject.toml | grep "version" | head -1 | cut -d'=' -f2 | xargs echo -n)
+          gh release create $APP_VERSION -F README.md --title "${APP_VERSION}" --target $(git branch --show-current)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

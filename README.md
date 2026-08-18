@@ -1,6 +1,6 @@
-# SAE AI Control
+# SAE Detection Sampler
 
-This is a repository to select detection results and transfer the selected results to ai-cockpit.
+This is a component that samples detections according to constraints.
 
 # How-to start
 

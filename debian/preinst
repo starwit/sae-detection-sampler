@@ -1,4 +1,0 @@
-#!/bin/bash
-
-mkdir -p /etc/starwit/sae-ai-control
-mkdir -p /opt/starwit/sae-ai-control
