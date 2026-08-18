@@ -1,4 +1,0 @@
-#!/bin/bash
-
-mkdir -p /etc/starwit/sae-detection-sampler
-mkdir -p /opt/starwit/sae-detection-sampler
