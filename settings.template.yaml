@@ -6,9 +6,31 @@ redis:
   input_stream_prefix: objecttracker
   output_stream_prefix: detectionselector
 prometheus_port: 8000
-min_confidence: 0.2 # minimum confidence below which a message is sent
-min_width: 0.001 # minimum bounding box width below which a message is sent
-min_height: 0.001 # minimum bounding boxheight below which a message is sent
-max_detections: 20 # maximum number of detections in a message above which a message is sent
-time_past: 1d # e.g. 1d, 5h, 10m, 30s time interval after which a message is sent even if no other criteria are met
-cooldown_seconds: 5 # minimum seconds between mined images; leave unset to disable
+
+# Forward a message if none has been forwarded for this long.
+# Natural duration, e.g. `1 day`, `5h`, `10 minutes`, `2h30m`. Delete the property to disable.
+heartbeat_interval: 1 day
+
+# A message is forwarded if ANY filter matches (OR).
+# A filter matches if the number of detections satisfying ALL of its `match_detection` predicates
+# (AND, evaluated per single detection) is greater than `matching_count_above`.
+# Delete a predicate to deactivate it.
+filters:
+  - name: low_confidence
+    match_detection:
+      confidence_below: 0.2 # a detection with a confidence below this
+    cooldown: 5s # minimum interval between messages forwarded by this filter; delete to disable
+
+  - name: tiny_boxes
+    match_detection:
+      width_below: 0.001 # a bounding box that is both narrower ...
+      height_below: 0.001 # ... and flatter than this
+
+  - name: crowded
+    matching_count_above: 20 # more than this many detections; no `match_detection` -> all of them count
+
+  - name: many_uncertain_persons
+    match_detection:
+      class_id_in: [ 0 ] # a detection of any of these class ids ...
+      confidence_below: 0.5 # ... that also has a confidence below this
+    matching_count_above: 3 # more than this many such detections
