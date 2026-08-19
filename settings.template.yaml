@@ -4,7 +4,7 @@ redis:
   port: 6379
   stream_id: stream1
   input_stream_prefix: objecttracker
-  output_stream_prefix: detectionselector
+  output_stream_prefix: detectionsampler
 prometheus_port: 8000
 
 # Forward a message if none has been forwarded for this long.

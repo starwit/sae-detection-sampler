@@ -3,11 +3,11 @@ from datetime import timedelta
 import pytest
 from pydantic import ValidationError
 
-from detectionsampler.config import DetectionSelectorConfig
+from detectionsampler.config import DetectionSamplerConfig
 
 
 def test_yaml_shaped_config_parses_into_nested_models():
-    config = DetectionSelectorConfig(
+    config = DetectionSamplerConfig(
         filters=[
             {
                 'name': 'many_uncertain_persons',
@@ -33,33 +33,33 @@ def test_yaml_shaped_config_parses_into_nested_models():
 
 
 def test_natural_durations_are_accepted():
-    assert DetectionSelectorConfig(heartbeat_interval='1 day').heartbeat_interval == timedelta(days=1)
+    assert DetectionSamplerConfig(heartbeat_interval='1 day').heartbeat_interval == timedelta(days=1)
 
 
 def test_unparseable_duration_is_rejected():
     '''The duration parser raises a ValueError, which has to surface as a config validation error.'''
     with pytest.raises(ValidationError):
-        DetectionSelectorConfig(heartbeat_interval='not-a-duration')
+        DetectionSamplerConfig(heartbeat_interval='not-a-duration')
 
 
 def test_config_without_filters_and_heartbeat_is_rejected():
     '''Nothing would ever be forwarded - this also catches a settings file from before 1.0.0.'''
     with pytest.raises(ValidationError):
-        DetectionSelectorConfig(filters=[])
+        DetectionSamplerConfig(filters=[])
 
 
 def test_duplicate_filter_names_are_rejected():
     with pytest.raises(ValidationError):
-        DetectionSelectorConfig(filters=[{'name': 'dupe'}, {'name': 'dupe'}])
+        DetectionSamplerConfig(filters=[{'name': 'dupe'}, {'name': 'dupe'}])
 
 
 def test_empty_class_id_in_is_rejected():
     '''An empty list would match nothing, which is never what a user means.'''
     with pytest.raises(ValidationError):
-        DetectionSelectorConfig(filters=[{'name': 'nothing', 'match_detection': {'class_id_in': []}}])
+        DetectionSamplerConfig(filters=[{'name': 'nothing', 'match_detection': {'class_id_in': []}}])
 
 
 def test_filters_only_config_is_valid():
-    config = DetectionSelectorConfig(filters=[{'name': 'anything'}])
+    config = DetectionSamplerConfig(filters=[{'name': 'anything'}])
 
     assert config.heartbeat_interval is None

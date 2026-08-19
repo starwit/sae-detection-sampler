@@ -46,7 +46,7 @@ Two optional timing settings limit the output:
 
 Both take a natural duration string: `1 day`, `5h`, `10 minutes`, `2h30m`, `1 day, 30 seconds`. Supported units are seconds, minutes, hours, days and weeks, each also as its usual abbreviation (`s`/`sec`, `m`/`min`, `h`/`hr`, `d`, `w`). All timing is measured in frame time (`frame.timestamp_utc_ms`), so the component behaves identically on a replayed stream.
 
-Per filter, `detection_selector_filter_match_counter{filter="<name>"}` counts how often that filter caused a message to be forwarded (label value `heartbeat` for the heartbeat), which is the intended way to tune the filters.
+Per filter, `detection_sampler_filter_match_counter{filter="<name>"}` counts how often that filter caused a message to be forwarded (label value `heartbeat` for the heartbeat), which is the intended way to tune the filters.
 
 ## Github Workflows and Versioning
 
@@ -66,8 +66,9 @@ With [dependabot.yml](.github/dependabot.yml) a scheduled version update via Dep
   - `min_confidence` / `min_width` / `min_height` / `max_detections` were ORed with each other, so every one of them that you used becomes its own filter with `confidence_below` / `width_below` / `height_below` / `matching_count_above`. Putting several predicates into one filter now ANDs them.
   - `time_past` becomes `heartbeat_interval`, `cooldown_seconds` becomes a per-filter `cooldown`. Both take a natural duration (`30s`, `10 minutes`, `1 day`) instead of a number of seconds.
 - Add predicate `class_id_in`, and make every predicate optional - deleting it deactivates it
-- Add metric `detection_selector_filter_match_counter`, labelled by filter name
+- Add metric `detection_sampler_filter_match_counter`, labelled by filter name
 - The heartbeat now also fires on frames without detections, and is no longer lost when the message it would have triggered is suppressed
+- **Breaking**: Renamed the remaining `selector` naming to `sampler`, which includes all metrics (`detection_selector_*` becomes `detection_sampler_*`, so existing dashboards and alerts have to be updated) and the default `output_stream_prefix`
 
 ### 0.2.0
 - Add option `cooldown_seconds` (puts a lower bound on consecutive message interval)

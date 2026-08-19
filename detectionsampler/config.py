@@ -38,7 +38,7 @@ class FilterConfig(BaseModel):
     cooldown: Optional[NaturalTimedelta] = None
 
 
-class DetectionSelectorConfig(BaseSettings):
+class DetectionSamplerConfig(BaseSettings):
     log_level: LogLevel = LogLevel.WARNING
     redis: RedisConfig = RedisConfig()
     prometheus_port: Annotated[int, Field(ge=1024, le=65536)] = 8000

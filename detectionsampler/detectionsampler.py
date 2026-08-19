@@ -4,24 +4,24 @@ from typing import Any, Dict, List, Optional
 from prometheus_client import Counter, Histogram, Summary
 from visionapi.sae_pb2 import Detection, SaeMessage
 
-from .config import DetectionPredicatesConfig, DetectionSelectorConfig, FilterConfig
+from .config import DetectionPredicatesConfig, DetectionSamplerConfig, FilterConfig
 
 logging.basicConfig(format='%(asctime)s %(name)-15s %(levelname)-8s %(processName)-10s %(message)s')
 logger = logging.getLogger(__name__)
 
-GET_DURATION = Histogram('detection_selector_get_duration', 'The time it takes to deserialize the proto until returning the tranformed result as a serialized proto',
+GET_DURATION = Histogram('detection_sampler_get_duration', 'The time it takes to deserialize the proto until returning the tranformed result as a serialized proto',
                          buckets=(0.0025, 0.005, 0.0075, 0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25))
-OBJECT_COUNTER = Counter('detection_selector_object_counter', 'How many detections have been forwarded')
-FILTER_MATCH_COUNTER = Counter('detection_selector_filter_match_counter', 'How often a filter caused a message to be forwarded', labelnames=('filter',))
-PROTO_SERIALIZATION_DURATION = Summary('detection_selector_proto_serialization_duration', 'The time it takes to create a serialized output proto')
-PROTO_DESERIALIZATION_DURATION = Summary('detection_selector_proto_deserialization_duration', 'The time it takes to deserialize an input proto')
+OBJECT_COUNTER = Counter('detection_sampler_object_counter', 'How many detections have been forwarded')
+FILTER_MATCH_COUNTER = Counter('detection_sampler_filter_match_counter', 'How often a filter caused a message to be forwarded', labelnames=('filter',))
+PROTO_SERIALIZATION_DURATION = Summary('detection_sampler_proto_serialization_duration', 'The time it takes to create a serialized output proto')
+PROTO_DESERIALIZATION_DURATION = Summary('detection_sampler_proto_deserialization_duration', 'The time it takes to deserialize an input proto')
 
 HEARTBEAT_LABEL = 'heartbeat'
 
 
-class DetectionSelector:
+class DetectionSampler:
 
-    def __init__(self, config: DetectionSelectorConfig) -> None:
+    def __init__(self, config: DetectionSamplerConfig) -> None:
         self.config = config
         logger.setLevel(self.config.log_level.value)
 
