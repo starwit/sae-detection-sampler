@@ -19,6 +19,52 @@ PROTO_DESERIALIZATION_DURATION = Summary('detection_sampler_proto_deserializatio
 HEARTBEAT_LABEL = 'heartbeat'
 
 
+def detection_matches(predicates: Optional[DetectionPredicatesConfig], detection: Detection) -> bool:
+    '''All predicates that are set have to hold for this single detection.'''
+    if predicates is None:
+        return True
+
+    if predicates.class_id_in is not None and detection.class_id not in predicates.class_id_in:
+        return False
+    if predicates.class_id_not_in is not None and detection.class_id in predicates.class_id_not_in:
+        return False
+    if predicates.confidence_above is not None and detection.confidence <= predicates.confidence_above:
+        return False
+    if predicates.confidence_below is not None and detection.confidence >= predicates.confidence_below:
+        return False
+
+    bounding_box = detection.bounding_box
+    width = bounding_box.max_x - bounding_box.min_x
+    height = bounding_box.max_y - bounding_box.min_y
+    if predicates.width_above is not None and width <= predicates.width_above:
+        return False
+    if predicates.width_below is not None and width >= predicates.width_below:
+        return False
+    if predicates.height_above is not None and height <= predicates.height_above:
+        return False
+    if predicates.height_below is not None and height >= predicates.height_below:
+        return False
+
+    return True
+
+
+def count_matching(predicates: Optional[DetectionPredicatesConfig], detections: List[Detection]) -> int:
+    return sum(1 for detection in detections if detection_matches(predicates, detection))
+
+
+def filter_matches(filter_config: FilterConfig, detections: List[Detection]) -> bool:
+    '''Match if the number of matching detections lies within the configured bounds. With neither
+    bound set, a single matching detection is enough.'''
+    count = count_matching(filter_config.match_detection, detections)
+    above = filter_config.matching_count_above
+    below = filter_config.matching_count_below
+
+    if above is None and below is None:
+        return count > 0
+
+    return (above is None or count > above) and (below is None or count < below)
+
+
 class DetectionSampler:
 
     def __init__(self, config: DetectionSamplerConfig) -> None:
@@ -70,7 +116,7 @@ class DetectionSampler:
             # Take the first message as the heartbeat baseline, so it does not fire right away
             self._last_forward_ms = timestamp_ms
 
-        matched = [f for f in self.config.filters if self._filter_matches(f, sae_msg)]
+        matched = [f for f in self.config.filters if filter_matches(f, sae_msg.detections)]
         ready = [f for f in matched if self._cooldown_elapsed(f, timestamp_ms)]
 
         if ready:
@@ -88,37 +134,6 @@ class DetectionSampler:
         OBJECT_COUNTER.inc(len(sae_msg.detections))
 
         return sae_msg
-
-    def _filter_matches(self, filter_config: FilterConfig, sae_msg: SaeMessage) -> bool:
-        return self._count_matching(filter_config, sae_msg.detections) > filter_config.matching_count_above
-
-    def _count_matching(self, filter_config: FilterConfig, detections: List[Detection]) -> int:
-        count = 0
-        for detection in detections:
-            if self._detection_matches(filter_config.match_detection, detection):
-                count += 1
-                if count > filter_config.matching_count_above:
-                    break
-
-        return count
-
-    def _detection_matches(self, predicates: Optional[DetectionPredicatesConfig], detection: Detection) -> bool:
-        '''All predicates that are set have to hold for this single detection.'''
-        if predicates is None:
-            return True
-
-        if predicates.class_id_in is not None and detection.class_id not in predicates.class_id_in:
-            return False
-        if predicates.confidence_below is not None and detection.confidence >= predicates.confidence_below:
-            return False
-
-        bounding_box = detection.bounding_box
-        if predicates.width_below is not None and bounding_box.max_x - bounding_box.min_x >= predicates.width_below:
-            return False
-        if predicates.height_below is not None and bounding_box.max_y - bounding_box.min_y >= predicates.height_below:
-            return False
-
-        return True
 
     def _cooldown_elapsed(self, filter_config: FilterConfig, timestamp_ms: int) -> bool:
         '''Suppressed frames do not restart the cooldown; measure from the last forwarded candidate.'''

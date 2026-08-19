@@ -59,6 +59,28 @@ def test_empty_class_id_in_is_rejected():
         DetectionSamplerConfig(filters=[{'name': 'nothing', 'match_detection': {'class_id_in': []}}])
 
 
+@pytest.mark.parametrize('predicates', [
+    {'confidence_above': 0.7, 'confidence_below': 0.3},
+    {'confidence_above': 0.5, 'confidence_below': 0.5},
+    {'width_above': 0.5, 'width_below': 0.1},
+    {'height_above': 0.5, 'height_below': 0.1},
+])
+def test_inverted_predicate_bounds_are_rejected(predicates):
+    '''No detection could ever fall into such a band, so it is a configuration mistake.'''
+    with pytest.raises(ValidationError):
+        DetectionSamplerConfig(filters=[{'name': 'impossible', 'match_detection': predicates}])
+
+
+@pytest.mark.parametrize('bounds', [
+    {'matching_count_above': 3, 'matching_count_below': 2},
+    {'matching_count_above': 2, 'matching_count_below': 2},
+    {'matching_count_above': 2, 'matching_count_below': 3},  # would require a count of both >2 and <3
+])
+def test_inverted_matching_count_bounds_are_rejected(bounds):
+    with pytest.raises(ValidationError):
+        DetectionSamplerConfig(filters=[{'name': 'impossible', **bounds}])
+
+
 def test_filters_only_config_is_valid():
     config = DetectionSamplerConfig(filters=[{'name': 'anything'}])
 

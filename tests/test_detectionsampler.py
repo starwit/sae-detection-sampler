@@ -2,8 +2,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from detectionsampler.config import (DetectionPredicatesConfig,
+                                     DetectionSamplerConfig, FilterConfig)
 from detectionsampler.detectionsampler import (DetectionSampler,
-                                                DetectionSamplerConfig)
+                                               detection_matches,
+                                               filter_matches)
 
 PERSON = 0
 CAR = 1
@@ -38,8 +41,101 @@ def make_sampler(*filters, heartbeat_interval=None):
     return DetectionSampler(config)
 
 
+# --- detection predicates -----------------------------------------------------------------------
+
+@pytest.mark.parametrize('predicates,detection,expected', [
+    ({'class_id_in': [CAR, 7]}, DummyDetection(class_id=CAR), True),
+    ({'class_id_in': [CAR, 7]}, DummyDetection(class_id=7), True),
+    ({'class_id_in': [CAR, 7]}, DummyDetection(class_id=PERSON), False),
+    ({'class_id_not_in': [CAR, 7]}, DummyDetection(class_id=PERSON), True),
+    ({'class_id_not_in': [CAR, 7]}, DummyDetection(class_id=CAR), False),
+    ({'confidence_below': 0.5}, DummyDetection(confidence=0.4), True),
+    ({'confidence_below': 0.5}, DummyDetection(confidence=0.6), False),
+    ({'confidence_above': 0.5}, DummyDetection(confidence=0.6), True),
+    ({'confidence_above': 0.5}, DummyDetection(confidence=0.4), False),
+    ({'width_below': 0.1}, DummyDetection(min_x=0.2, max_x=0.25), True),
+    ({'width_below': 0.1}, DummyDetection(min_x=0.2, max_x=0.6), False),
+    ({'width_above': 0.3}, DummyDetection(min_x=0.2, max_x=0.6), True),
+    ({'width_above': 0.3}, DummyDetection(min_x=0.2, max_x=0.25), False),
+    ({'height_below': 0.1}, DummyDetection(min_y=0.2, max_y=0.25), True),
+    ({'height_below': 0.1}, DummyDetection(min_y=0.2, max_y=0.6), False),
+    ({'height_above': 0.3}, DummyDetection(min_y=0.2, max_y=0.6), True),
+    ({'height_above': 0.3}, DummyDetection(min_y=0.2, max_y=0.25), False),
+])
+def test_single_predicate(predicates, detection, expected):
+    assert detection_matches(DetectionPredicatesConfig(**predicates), detection) is expected
+
+
+@pytest.mark.parametrize('predicates,detection,expected', [
+    # A band between two bounds of the same subject
+    ({'confidence_above': 0.3, 'confidence_below': 0.7}, DummyDetection(confidence=0.5), True),
+    ({'confidence_above': 0.3, 'confidence_below': 0.7}, DummyDetection(confidence=0.2), False),
+    ({'confidence_above': 0.3, 'confidence_below': 0.7}, DummyDetection(confidence=0.8), False),
+    # Predicates over different subjects are ANDed
+    ({'class_id_in': [PERSON], 'confidence_below': 0.5}, DummyDetection(class_id=PERSON, confidence=0.4), True),
+    ({'class_id_in': [PERSON], 'confidence_below': 0.5}, DummyDetection(class_id=PERSON, confidence=0.6), False),
+    ({'class_id_in': [PERSON], 'confidence_below': 0.5}, DummyDetection(class_id=CAR, confidence=0.4), False),
+])
+def test_predicates_are_anded(predicates, detection, expected):
+    assert detection_matches(DetectionPredicatesConfig(**predicates), detection) is expected
+
+
+def test_unset_predicates_are_inactive():
+    '''Only `width_below` is configured, so neither a low confidence nor a flat box may trigger it.'''
+    predicates = DetectionPredicatesConfig(width_below=0.1)
+
+    assert detection_matches(predicates, DummyDetection(confidence=0.01, min_x=0.0, max_x=0.5, min_y=0.0, max_y=0.01)) is False
+
+
+def test_no_predicates_match_any_detection():
+    assert detection_matches(None, DummyDetection()) is True
+    assert detection_matches(DetectionPredicatesConfig(), DummyDetection()) is True
+
+
+# --- matching count -----------------------------------------------------------------------------
+
+@pytest.mark.parametrize('bounds,matching_detections,expected', [
+    # Without bounds a single matching detection is enough
+    ({}, 0, False),
+    ({}, 1, True),
+    ({'matching_count_above': 2}, 2, False),
+    ({'matching_count_above': 2}, 3, True),
+    ({'matching_count_below': 1}, 0, True),
+    ({'matching_count_below': 1}, 1, False),
+    ({'matching_count_below': 3}, 2, True),
+    ({'matching_count_below': 3}, 3, False),
+    ({'matching_count_above': 1, 'matching_count_below': 4}, 1, False),
+    ({'matching_count_above': 1, 'matching_count_below': 4}, 2, True),
+    ({'matching_count_above': 1, 'matching_count_below': 4}, 3, True),
+    ({'matching_count_above': 1, 'matching_count_below': 4}, 4, False),
+])
+def test_matching_count_bounds(bounds, matching_detections, expected):
+    filter_config = FilterConfig(name='persons', match_detection={'class_id_in': [PERSON]}, **bounds)
+    detections = [DummyDetection(class_id=PERSON) for _ in range(matching_detections)]
+
+    assert filter_matches(filter_config, detections) is expected
+
+
+def test_only_matching_detections_are_counted():
+    filter_config = FilterConfig(name='many_persons', match_detection={'class_id_in': [PERSON]}, matching_count_above=2)
+
+    persons_and_cars = [DummyDetection(class_id=PERSON) for _ in range(2)] + [DummyDetection(class_id=CAR) for _ in range(5)]
+    assert filter_matches(filter_config, persons_and_cars) is False
+
+    assert filter_matches(filter_config, [DummyDetection(class_id=PERSON) for _ in range(3)]) is True
+
+
+def test_count_without_predicates_counts_all_detections():
+    filter_config = FilterConfig(name='crowded', matching_count_above=2)
+
+    assert filter_matches(filter_config, [DummyDetection(class_id=CAR) for _ in range(2)]) is False
+    assert filter_matches(filter_config, [DummyDetection(class_id=CAR) for _ in range(3)]) is True
+
+
+# --- module level -------------------------------------------------------------------------------
+
 def test_predicates_are_anded_per_detection():
-    '''One and the same detection has to satisfy all predicates of a filter.'''
+    '''One and the same detection has to satisfy all predicates, not the frame as a whole.'''
     sampler = make_sampler({'name': 'low_conf_persons', 'match_detection': {'class_id_in': [PERSON], 'confidence_below': 0.4}})
 
     # A person and a low confidence detection, but not in the same detection
@@ -48,83 +144,6 @@ def test_predicates_are_anded_per_detection():
 
     low_conf_person = make_msg([DummyDetection(confidence=0.3, class_id=PERSON)])
     assert sampler._filter_message(low_conf_person) == low_conf_person
-
-
-def test_class_id_in_is_any_of():
-    sampler = make_sampler({'name': 'vehicles', 'match_detection': {'class_id_in': [CAR, 7]}})
-
-    for class_id in (CAR, 7):
-        msg = make_msg([DummyDetection(class_id=class_id)])
-        assert sampler._filter_message(msg) == msg
-
-    msg = make_msg([DummyDetection(class_id=PERSON)])
-    assert sampler._filter_message(msg) is None
-
-
-def test_confidence_below():
-    sampler = make_sampler({'name': 'low_confidence', 'match_detection': {'confidence_below': 0.5}})
-
-    below = make_msg([DummyDetection(confidence=0.4)])
-    assert sampler._filter_message(below) == below
-
-    above = make_msg([DummyDetection(confidence=0.6)])
-    assert sampler._filter_message(above) is None
-
-
-def test_width_below():
-    sampler = make_sampler({'name': 'narrow', 'match_detection': {'width_below': 0.1}})
-
-    below = make_msg([DummyDetection(min_x=0.2, max_x=0.25)])
-    assert sampler._filter_message(below) == below
-
-    above = make_msg([DummyDetection(min_x=0.2, max_x=0.6)])
-    assert sampler._filter_message(above) is None
-
-
-def test_height_below():
-    sampler = make_sampler({'name': 'flat', 'match_detection': {'height_below': 0.1}})
-
-    below = make_msg([DummyDetection(min_y=0.2, max_y=0.25)])
-    assert sampler._filter_message(below) == below
-
-    above = make_msg([DummyDetection(min_y=0.2, max_y=0.6)])
-    assert sampler._filter_message(above) is None
-
-
-def test_unset_predicates_are_inactive():
-    '''Only `width_below` is configured, so neither a low confidence nor a flat box may trigger it.'''
-    sampler = make_sampler({'name': 'narrow', 'match_detection': {'width_below': 0.1}})
-
-    msg = make_msg([DummyDetection(confidence=0.01, min_x=0.0, max_x=0.5, min_y=0.0, max_y=0.01)])
-    assert sampler._filter_message(msg) is None
-
-
-def test_filter_without_detection_block_matches_any_detection():
-    sampler = make_sampler({'name': 'anything'})
-
-    msg = make_msg([DummyDetection()])
-    assert sampler._filter_message(msg) == msg
-
-    assert sampler._filter_message(make_msg([])) is None
-
-
-def test_matching_count_above_counts_only_matching_detections():
-    sampler = make_sampler({'name': 'many_persons', 'match_detection': {'class_id_in': [PERSON]}, 'matching_count_above': 2})
-
-    two_persons = make_msg([DummyDetection(class_id=PERSON) for _ in range(2)] + [DummyDetection(class_id=CAR) for _ in range(5)])
-    assert sampler._filter_message(two_persons) is None
-
-    three_persons = make_msg([DummyDetection(class_id=PERSON) for _ in range(3)])
-    assert sampler._filter_message(three_persons) == three_persons
-
-
-def test_matching_count_above_without_predicates_counts_all_detections():
-    sampler = make_sampler({'name': 'crowded', 'matching_count_above': 4})
-
-    assert sampler._filter_message(make_msg([DummyDetection() for _ in range(4)])) is None
-
-    crowded = make_msg([DummyDetection() for _ in range(5)])
-    assert sampler._filter_message(crowded) == crowded
 
 
 def test_filters_are_ored():
@@ -202,7 +221,7 @@ def test_heartbeat_is_reset_by_a_forwarded_message():
     assert sampler._filter_message(heartbeat) == heartbeat
 
 
-def test_no_heartbeat_configured_never_forwards_unmatched_messages():
+def test_without_heartbeat_unmatched_messages_are_never_forwarded():
     sampler = make_sampler({'name': 'cars', 'match_detection': {'class_id_in': [CAR]}})
 
     for timestamp in (1_000, 10_000_000):

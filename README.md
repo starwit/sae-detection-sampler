@@ -28,16 +28,22 @@ Note that `filters` is a list, and pydantic-settings does not merge a list acros
 
 ## Filtering
 
-A message is forwarded if **any** filter matches (OR). A filter matches if the number of detections that satisfy **all** of its `match_detection` predicates (AND) is greater than `matching_count_above` (default `0`, i.e. at least one matching detection).
+A message is forwarded if **any** filter matches (OR). A filter matches if the number of detections that satisfy **all** of its `match_detection` predicates (AND) lies within `matching_count_above` and `matching_count_below`. With neither bound set, a single matching detection is enough.
 
 The `match_detection` predicates are evaluated per single detection, so one and the same detection has to satisfy all of them. A filter with `class_id_in: [ 0 ]` and `confidence_below: 0.4` matches a person that was detected with low confidence — not a frame that happens to contain both a person and some unrelated low confidence detection. Delete a predicate to deactivate it; delete the whole `match_detection` block to count every detection.
 
 | Predicate | Matches a detection whose ... |
 | --- | --- |
 | `class_id_in: [ 0, 1 ]` | `class_id` is any of the listed ids |
+| `class_id_not_in: [ 0, 1 ]` | `class_id` is none of the listed ids |
+| `confidence_above: 0.8` | confidence is above the value |
 | `confidence_below: 0.2` | confidence is below the value |
+| `width_above: 0.5` | bounding box width is above the value |
 | `width_below: 0.001` | bounding box width is below the value |
+| `height_above: 0.5` | bounding box height is above the value |
 | `height_below: 0.001` | bounding box height is below the value |
+
+All comparisons are strict, and the `_above` / `_below` pair of the same subject can be combined into a band (`confidence_above: 0.3` with `confidence_below: 0.7`). The two count bounds work the same way, so `matching_count_below: 1` matches frames **without** any matching detection — e.g. a filter with `class_id_in: [ 0 ]` and `matching_count_below: 1` mines frames that contain no person at all.
 
 Two optional timing settings limit the output:
 
@@ -65,7 +71,7 @@ With [dependabot.yml](.github/dependabot.yml) a scheduled version update via Dep
 - **Breaking**: Reworked the filter configuration into a list of independent `filters` (see [Filtering](#filtering)). The options `min_confidence`, `min_width`, `min_height`, `max_detections`, `time_past` and `cooldown_seconds` are gone and a settings file that still uses them is rejected at startup. Migration:
   - `min_confidence` / `min_width` / `min_height` / `max_detections` were ORed with each other, so every one of them that you used becomes its own filter with `confidence_below` / `width_below` / `height_below` / `matching_count_above`. Putting several predicates into one filter now ANDs them.
   - `time_past` becomes `heartbeat_interval`, `cooldown_seconds` becomes a per-filter `cooldown`. Both take a natural duration (`30s`, `10 minutes`, `1 day`) instead of a number of seconds.
-- Add predicate `class_id_in`, and make every predicate optional - deleting it deactivates it
+- Add predicates `class_id_in`, `class_id_not_in`, `confidence_above`, `confidence_below`, `width_above`, `width_below`, `height_above`, `height_below` and the count bounds `matching_count_above` / `matching_count_below`, all of them optional - deleting one deactivates it
 - Add metric `detection_sampler_filter_match_counter`, labelled by filter name
 - The heartbeat now also fires on frames without detections, and is no longer lost when the message it would have triggered is suppressed
 - **Breaking**: Renamed the remaining `selector` naming to `sampler`, which includes all metrics (`detection_selector_*` becomes `detection_sampler_*`, so existing dashboards and alerts have to be updated) and the default `output_stream_prefix`

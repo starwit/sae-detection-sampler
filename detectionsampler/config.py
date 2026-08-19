@@ -26,16 +26,39 @@ class RedisConfig(BaseModel):
 
 class DetectionPredicatesConfig(BaseModel):
     class_id_in: Optional[Annotated[List[int], Field(min_length=1)]] = None
+    class_id_not_in: Optional[Annotated[List[int], Field(min_length=1)]] = None
+    confidence_above: Optional[Annotated[float, Field(ge=0)]] = None
     confidence_below: Optional[Annotated[float, Field(gt=0)]] = None
+    width_above: Optional[Annotated[float, Field(ge=0)]] = None
     width_below: Optional[Annotated[float, Field(gt=0)]] = None
+    height_above: Optional[Annotated[float, Field(ge=0)]] = None
     height_below: Optional[Annotated[float, Field(gt=0)]] = None
+
+    @model_validator(mode='after')
+    def _validate_bounds(self):
+        for subject in ('confidence', 'width', 'height'):
+            above = getattr(self, f'{subject}_above')
+            below = getattr(self, f'{subject}_below')
+            if above is not None and below is not None and below <= above:
+                raise ValueError(f'{subject}_below has to be greater than {subject}_above, no detection could match')
+
+        return self
 
 
 class FilterConfig(BaseModel):
     name: str
     match_detection: Optional[DetectionPredicatesConfig] = None
-    matching_count_above: Annotated[int, Field(ge=0)] = 0
+    matching_count_above: Optional[Annotated[int, Field(ge=0)]] = None
+    matching_count_below: Optional[Annotated[int, Field(ge=1)]] = None
     cooldown: Optional[NaturalTimedelta] = None
+
+    @model_validator(mode='after')
+    def _validate_bounds(self):
+        if (self.matching_count_above is not None and self.matching_count_below is not None
+                and self.matching_count_below <= self.matching_count_above + 1):
+            raise ValueError('matching_count_below has to be greater than matching_count_above + 1, no count could match')
+
+        return self
 
 
 class DetectionSamplerConfig(BaseSettings):

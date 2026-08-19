@@ -13,7 +13,8 @@ heartbeat_interval: 1 day
 
 # A message is forwarded if ANY filter matches (OR).
 # A filter matches if the number of detections satisfying ALL of its `match_detection` predicates
-# (AND, evaluated per single detection) is greater than `matching_count_above`.
+# (AND, evaluated per single detection) lies within `matching_count_above`/`matching_count_below`.
+# With neither count bound set, a single matching detection is enough.
 # Delete a predicate to deactivate it.
 filters:
   - name: low_confidence
@@ -26,11 +27,26 @@ filters:
       width_below: 0.001 # a bounding box that is both narrower ...
       height_below: 0.001 # ... and flatter than this
 
+  - name: oversized_boxes
+    match_detection:
+      width_above: 0.8 # a bounding box covering most of the frame
+      height_above: 0.8
+
   - name: crowded
     matching_count_above: 20 # more than this many detections; no `match_detection` -> all of them count
+
+  - name: no_persons
+    match_detection:
+      class_id_in: [ 0 ]
+    matching_count_below: 1 # fewer than this many such detections, i.e. no person in the frame
+
+  - name: unexpected_classes
+    match_detection:
+      class_id_not_in: [ 0, 1, 2 ] # a detection that is none of the usual class ids
 
   - name: many_uncertain_persons
     match_detection:
       class_id_in: [ 0 ] # a detection of any of these class ids ...
-      confidence_below: 0.5 # ... that also has a confidence below this
+      confidence_above: 0.3 # ... whose confidence lies between these two bounds
+      confidence_below: 0.5
     matching_count_above: 3 # more than this many such detections
