@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build -t starwitorg/sae-detection-selector:local .
+docker build -t starwitorg/sae-detection-sampler:local .

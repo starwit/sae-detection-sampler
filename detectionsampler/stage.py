@@ -6,14 +6,14 @@ from prometheus_client import Counter, Histogram, start_http_server
 from visionlib.pipeline.consumer import RedisConsumer
 from visionlib.pipeline.publisher import RedisPublisher
 
-from .config import DetectionSelectorConfig
-from .detectionselector import DetectionSelector
+from .config import DetectionSamplerConfig
+from .detectionsampler import DetectionSampler
 
 logger = logging.getLogger(__name__)
 
-REDIS_PUBLISH_DURATION = Histogram('detection_selector_redis_publish_duration', 'The time it takes to push a message onto the Redis stream',
+REDIS_PUBLISH_DURATION = Histogram('detection_sampler_redis_publish_duration', 'The time it takes to push a message onto the Redis stream',
                                    buckets=(0.0025, 0.005, 0.0075, 0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25))
-FRAME_COUNTER = Counter('detection_selector_frame_counter', 'How many frames have been consumed from the Redis input stream')
+FRAME_COUNTER = Counter('detection_sampler_frame_counter', 'How many frames have been consumed from the Redis input stream')
 
 def run_stage():
 
@@ -29,7 +29,7 @@ def run_stage():
     signal.signal(signal.SIGINT, sig_handler)
 
     # Load config from settings.yaml / env vars
-    CONFIG = DetectionSelectorConfig()
+    CONFIG = DetectionSamplerConfig()
 
     logger.setLevel(CONFIG.log_level.value)
 
@@ -37,9 +37,9 @@ def run_stage():
 
     start_http_server(CONFIG.prometheus_port)
 
-    logger.info(f'Starting geo mapper stage. Config: {CONFIG.model_dump_json(indent=2)}')
+    logger.info(f'Starting detection sampler stage. Config: {CONFIG.model_dump_json(indent=2)}')
 
-    detection_selector = DetectionSelector(CONFIG)
+    detection_sampler = DetectionSampler(CONFIG)
 
     consume = RedisConsumer(CONFIG.redis.host, CONFIG.redis.port, 
                             stream_keys=[f'{CONFIG.redis.input_stream_prefix}:{CONFIG.redis.stream_id}'])
@@ -57,7 +57,7 @@ def run_stage():
 
             FRAME_COUNTER.inc()
 
-            output_proto_data = detection_selector.get(proto_data)
+            output_proto_data = detection_sampler.get(proto_data)
 
             if output_proto_data is None:
                 continue
