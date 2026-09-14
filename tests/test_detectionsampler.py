@@ -28,6 +28,7 @@ def make_msg(detections, timestamp=1_000):
     msg = MagicMock()
     msg.detections = detections
     msg.frame.timestamp_utc_ms = timestamp
+    msg.sampling_reasons = []
     return msg
 
 
@@ -226,3 +227,18 @@ def test_without_heartbeat_unmatched_messages_are_never_forwarded():
 
     for timestamp in (1_000, 10_000_000):
         assert sampler._filter_message(make_msg([DummyDetection(class_id=PERSON)], timestamp=timestamp)) is None
+
+
+def test_sampling_reasons_include_all_triggered_filters_or_heartbeat():
+    sampler = make_sampler(
+        {'name': 'first', 'cooldown': '30s'},
+        {'name': 'second', 'cooldown': '30s'},
+        heartbeat_interval='10s',
+    )
+
+    message = sampler._filter_message(make_msg([DummyDetection()], 1_000))
+    assert message.sampling_reasons == ['first', 'second']
+    assert sampler._filter_message(make_msg([DummyDetection()], 2_000)) is None
+
+    message = sampler._filter_message(make_msg([DummyDetection()], 11_000))
+    assert message.sampling_reasons == ['heartbeat']
