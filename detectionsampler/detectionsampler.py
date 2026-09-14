@@ -118,6 +118,7 @@ class DetectionSampler:
 
         matched = [f for f in self.config.filters if filter_matches(f, sae_msg.detections)]
         ready = [f for f in matched if self._cooldown_elapsed(f, timestamp_ms)]
+        reasons = [f.name for f in matched]
 
         if ready:
             for filter_config in ready:
@@ -125,10 +126,15 @@ class DetectionSampler:
                 FILTER_MATCH_COUNTER.labels(filter=filter_config.name).inc()
             logger.debug(f'Forwarding message ({", ".join(f.name for f in ready)})')
         elif self._heartbeat_due(timestamp_ms):
+            reasons.append(HEARTBEAT_LABEL)
             FILTER_MATCH_COUNTER.labels(filter=HEARTBEAT_LABEL).inc()
             logger.debug(f'Forwarding message ({HEARTBEAT_LABEL})')
         else:
             return None
+
+        metadata = sae_msg.sampling_metadata.add(sampler_id=self.config.sampler_id)
+        for reason in reasons:
+            metadata.filter_matches.add(name=reason)
 
         self._last_forward_ms = timestamp_ms
         OBJECT_COUNTER.inc(len(sae_msg.detections))
