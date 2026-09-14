@@ -32,6 +32,11 @@ filters:
       width_above: 0.8 # a bounding box covering most of the frame
       height_above: 0.8
 
+  - name: small_boxes_away_from_edges
+    match_detection:
+      width_below: 0.01 # a narrow bounding box ...
+      is_edge: false # ... that does not touch the frame border (true: only boxes touching it)
+
   - name: crowded
     matching_count_above: 20 # more than this many detections; no `match_detection` -> all of them count
 

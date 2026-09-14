@@ -42,6 +42,7 @@ The `match_detection` predicates are evaluated per single detection, so one and 
 | `width_below: 0.001` | bounding box width is below the value |
 | `height_above: 0.5` | bounding box height is above the value |
 | `height_below: 0.001` | bounding box height is below the value |
+| `is_edge: true` / `false` | bounding box does / does not touch the frame border (within a tolerance of 0.01) |
 
 All comparisons are strict, and the `_above` / `_below` pair of the same subject can be combined into a band (`confidence_above: 0.3` with `confidence_below: 0.7`). The two count bounds work the same way, so `matching_count_below: 1` matches frames **without** any matching detection — e.g. a filter with `class_id_in: [ 0 ]` and `matching_count_below: 1` mines frames that contain no person at all.
 
@@ -67,6 +68,9 @@ The following Github Actions are available:
 With [dependabot.yml](.github/dependabot.yml) a scheduled version update via Dependabot is configured. Dependabot creates a pull request if newer versions are available and the compilation is checked via PR build.
 
 ## Changelog
+### 1.1.0
+- Add predicate `is_edge`, matching detections whose bounding box does (`true`) or does not (`false`) touch the frame border
+
 ### 1.0.0
 - **Breaking**: Reworked the filter configuration into a list of independent `filters` (see [Filtering](#filtering)). The options `min_confidence`, `min_width`, `min_height`, `max_detections`, `time_past` and `cooldown_seconds` are gone and a settings file that still uses them is rejected at startup. Migration:
   - `min_confidence` / `min_width` / `min_height` / `max_detections` were ORed with each other, so every one of them that you used becomes its own filter with `confidence_below` / `width_below` / `height_below` / `matching_count_above`. Putting several predicates into one filter now ANDs them.
