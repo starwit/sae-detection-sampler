@@ -33,6 +33,7 @@ class DetectionPredicatesConfig(BaseModel):
     width_below: Optional[Annotated[float, Field(gt=0)]] = None
     height_above: Optional[Annotated[float, Field(ge=0)]] = None
     height_below: Optional[Annotated[float, Field(gt=0)]] = None
+    is_edge: Optional[bool] = None
 
     @model_validator(mode='after')
     def _validate_bounds(self):

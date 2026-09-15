@@ -18,6 +18,10 @@ PROTO_DESERIALIZATION_DURATION = Summary('detection_sampler_proto_deserializatio
 
 HEARTBEAT_LABEL = 'heartbeat'
 
+# Bounding boxes of objects that are cut off by the frame border do not always end exactly at the border
+# (e.g. because the model runs on a lower resolution), therefore this tolerance band around the border is considered "edge" as well.
+EDGE_TOLERANCE = 0.01
+
 
 def detection_matches(predicates: Optional[DetectionPredicatesConfig], detection: Detection) -> bool:
     '''All predicates that are set have to hold for this single detection.'''
@@ -44,8 +48,18 @@ def detection_matches(predicates: Optional[DetectionPredicatesConfig], detection
         return False
     if predicates.height_below is not None and height >= predicates.height_below:
         return False
+    if predicates.is_edge is not None and is_edge_detection(bounding_box) != predicates.is_edge:
+        return False
 
     return True
+
+
+def is_edge_detection(bbox) -> bool:
+    '''A detection is considered an edge detection if its bounding box touches (or exceeds) the image border'''
+    return (bbox.min_x <= EDGE_TOLERANCE
+            or bbox.min_y <= EDGE_TOLERANCE
+            or bbox.max_x >= 1 - EDGE_TOLERANCE
+            or bbox.max_y >= 1 - EDGE_TOLERANCE)
 
 
 def count_matching(predicates: Optional[DetectionPredicatesConfig], detections: List[Detection]) -> int:

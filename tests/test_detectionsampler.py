@@ -61,6 +61,11 @@ def make_sampler(*filters, heartbeat_interval=None):
     ({'height_below': 0.1}, DummyDetection(min_y=0.2, max_y=0.6), False),
     ({'height_above': 0.3}, DummyDetection(min_y=0.2, max_y=0.6), True),
     ({'height_above': 0.3}, DummyDetection(min_y=0.2, max_y=0.25), False),
+    ({'is_edge': True}, DummyDetection(min_x=0.0, max_x=0.5), True),
+    ({'is_edge': True}, DummyDetection(min_y=0.5, max_y=0.995), True),
+    ({'is_edge': True}, DummyDetection(), False),
+    ({'is_edge': False}, DummyDetection(), True),
+    ({'is_edge': False}, DummyDetection(min_x=0.5, max_x=1.0), False),
 ])
 def test_single_predicate(predicates, detection, expected):
     assert detection_matches(DetectionPredicatesConfig(**predicates), detection) is expected
@@ -85,6 +90,14 @@ def test_unset_predicates_are_inactive():
     predicates = DetectionPredicatesConfig(width_below=0.1)
 
     assert detection_matches(predicates, DummyDetection(confidence=0.01, min_x=0.0, max_x=0.5, min_y=0.0, max_y=0.01)) is False
+
+
+def test_unset_is_edge_matches_edge_and_non_edge_detections():
+    predicates = DetectionPredicatesConfig(class_id_in=[PERSON])
+
+    assert predicates.is_edge is None
+    assert detection_matches(predicates, DummyDetection(min_x=0.0, max_x=0.5)) is True
+    assert detection_matches(predicates, DummyDetection(min_x=0.2, max_x=0.5)) is True
 
 
 def test_no_predicates_match_any_detection():
