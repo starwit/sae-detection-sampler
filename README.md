@@ -74,9 +74,6 @@ The following Github Actions are available:
 With [dependabot.yml](.github/dependabot.yml) a scheduled version update via Dependabot is configured. Dependabot creates a pull request if newer versions are available and the compilation is checked via PR build.
 
 ## Changelog
-### Unreleased
-- Use Vision API 3.8.0 sampling metadata to record the sampler and all matching filters on forwarded messages.
-
 ### 1.1.0
 - Add predicate `is_edge`, matching detections whose bounding box does (`true`) or does not (`false`) touch the frame border
 
