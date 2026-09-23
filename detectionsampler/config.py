@@ -65,6 +65,7 @@ class FilterConfig(BaseModel):
 class DetectionSamplerConfig(BaseSettings):
     log_level: LogLevel = LogLevel.WARNING
     redis: RedisConfig = RedisConfig()
+    sampler_id: Optional[str] = None
     prometheus_port: Annotated[int, Field(ge=1024, le=65536)] = 8000
 
     filters: List[FilterConfig] = []
@@ -78,9 +79,14 @@ class DetectionSamplerConfig(BaseSettings):
             raise ValueError('No filters and no heartbeat_interval configured, no message would ever be forwarded')
 
         names = [f.name for f in self.filters]
+        if 'heartbeat' in names:
+            raise ValueError('Filter name heartbeat is reserved')
+
         duplicates = sorted({name for name in names if names.count(name) > 1})
         if duplicates:
             raise ValueError(f'Filter names have to be unique, found duplicates: {", ".join(duplicates)}')
+
+        self.sampler_id = self.sampler_id or self.redis.output_stream_prefix
 
         return self
 

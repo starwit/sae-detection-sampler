@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+from visionapi.sae_pb2 import SaeMessage
 
 from detectionsampler.config import (DetectionPredicatesConfig,
                                      DetectionSamplerConfig, FilterConfig)
@@ -29,6 +30,16 @@ def make_msg(detections, timestamp=1_000):
     msg.detections = detections
     msg.frame.timestamp_utc_ms = timestamp
     return msg
+
+
+def make_sae_msg(timestamp=1_000):
+    msg = SaeMessage()
+    msg.frame.timestamp_utc_ms = timestamp
+    return msg
+
+
+def filter_match_names(message):
+    return [match.name for match in message.sampling_metadata[-1].filter_matches]
 
 
 def make_sampler(*filters, heartbeat_interval=None):
@@ -239,3 +250,44 @@ def test_without_heartbeat_unmatched_messages_are_never_forwarded():
 
     for timestamp in (1_000, 10_000_000):
         assert sampler._filter_message(make_msg([DummyDetection(class_id=PERSON)], timestamp=timestamp)) is None
+
+
+def test_sampling_metadata_includes_all_matched_filters_during_cooldown():
+    sampler = make_sampler(
+        {'name': 'first', 'matching_count_below': 1, 'cooldown': '30s'},
+        {'name': 'second', 'matching_count_below': 1},
+    )
+
+    message = sampler._filter_message(make_sae_msg(1_000))
+    assert len(message.sampling_metadata) == 1
+    assert filter_match_names(message) == ['first', 'second']
+
+    message = sampler._filter_message(make_sae_msg(2_000))
+    assert filter_match_names(message) == ['first', 'second']
+
+
+def test_heartbeat_metadata_includes_matches_even_during_cooldown():
+    heartbeat_only = make_sampler({'name': 'never', 'matching_count_above': 0}, heartbeat_interval='10s')
+    assert heartbeat_only._filter_message(make_sae_msg(1_000)) is None
+
+    message = heartbeat_only._filter_message(make_sae_msg(11_000))
+    assert filter_match_names(message) == ['heartbeat']
+
+    cooling = make_sampler({'name': 'cooling', 'matching_count_below': 1, 'cooldown': '30s'}, heartbeat_interval='10s')
+    assert cooling._filter_message(make_sae_msg(1_000)) is not None
+
+    message = cooling._filter_message(make_sae_msg(11_000))
+    assert filter_match_names(message) == ['cooling', 'heartbeat']
+
+
+def test_sampling_metadata_preserves_existing_entries():
+    sampler = make_sampler({'name': 'current', 'matching_count_below': 1})
+    message = make_sae_msg()
+    previous = message.sampling_metadata.add(sampler_id='upstream')
+    previous.filter_matches.add(name='previous')
+
+    message = sampler._filter_message(message)
+
+    assert [metadata.sampler_id for metadata in message.sampling_metadata] == ['upstream', 'detectionsampler']
+    assert [match.name for match in message.sampling_metadata[0].filter_matches] == ['previous']
+    assert filter_match_names(message) == ['current']
