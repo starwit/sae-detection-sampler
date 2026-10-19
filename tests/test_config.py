@@ -85,3 +85,17 @@ def test_filters_only_config_is_valid():
     config = DetectionSamplerConfig(filters=[{'name': 'anything'}])
 
     assert config.heartbeat_interval is None
+
+
+def test_heartbeat_filter_name_is_reserved():
+    with pytest.raises(ValidationError, match='heartbeat is reserved'):
+        DetectionSamplerConfig(filters=[{'name': 'heartbeat'}])
+
+
+def test_sampler_id_defaults_to_output_stream_prefix():
+    config = DetectionSamplerConfig(
+        redis={'output_stream_prefix': 'custom-sampler'},
+        filters=[{'name': 'anything'}],
+    )
+
+    assert config.sampler_id == 'custom-sampler'
